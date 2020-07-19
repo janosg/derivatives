@@ -1,0 +1,21 @@
+name: derivatives
+
+channels:
+  - conda-forge
+
+dependencies:
+
+  - python=3.7
+  - pip=19.0.3
+  - jupyterlab
+  - jax>=0.1.60
+  - numpy=1.16
+  - pandas>=0.24
+  - pdbpp
+  - pytest
+  - pytest-cov
+  - pytest-xdist
+  - scipy=1.2.1
+  - pip:
+    - black
+    - blackcellmagic
