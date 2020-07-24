@@ -8,6 +8,7 @@ from derivatives import derivative_covariance_from_internal
 from derivatives import derivative_covariance_to_internal
 from derivatives import derivative_probability_from_internal
 from derivatives import derivative_probability_to_internal
+from derivatives import derivative_sdcorr_from_internal
 
 from kernel_transformations_jax import covariance_from_internal
 from kernel_transformations_jax import covariance_to_internal
@@ -83,3 +84,26 @@ def test_derivative_probability_to_internal(dim, jax_derivatives):
     jax_deriv = jax_derivatives["probability_to"](external)
     deriv = derivative_probability_to_internal(external)
     assert_array_almost_equal(deriv, jax_deriv, decimal=5)
+
+
+@pytest.mark.parametrize("dim", list(range(10, 50)))
+def test_derivative_sdcorr_from_internal(dim, jax_derivatives):
+    internal = get_random_internal(dim)
+    jax_deriv = jax_derivatives["sdcorr_from"](internal)
+    deriv = derivative_sdcorr_from_internal(internal)
+    assert_array_almost_equal(deriv, jax_deriv, decimal=5)
+
+
+def test_derivative_sdcorr_to_internal(jax_derivatives):
+    bad = []
+
+    for dim in range(10, 50):
+        external = get_random_external(dim)
+        jax_deriv = jax_derivatives["sdcorr_to"](external)
+        try:
+            deriv = derivative_sdcorr_to_internal(external)
+            assert_array_almost_equal(deriv, jax_deriv, decimal=5)
+        except Exception:
+            bad.append(dim)
+
+    assert len(bad) < 5

@@ -20,6 +20,7 @@ from utilities import cov_matrix_to_sdcorr_params
 from utilities import number_of_triangular_elements_to_dimension
 from utilities import dimension_to_number_of_triangular_elements
 from utilities import cov_params_to_matrix
+from utilities import sdcorr_params_to_matrix
 
 from utilities import commutation_matrix
 from utilities import elimination_matrix
@@ -36,7 +37,7 @@ def derivative_covariance_from_internal(internal):
     Differential Calculus with Applications in Statistics and Econometrics' by Magnus
     and Neudecker. The following result is motivated by https://tinyurl.com/y4pbfxst,
     which is shortly presented again here. For notation see the explaination at the
-    beginning of the script.
+    beginning of the module.
 
     .. math::
 
@@ -84,7 +85,7 @@ def derivative_covariance_to_internal(external):
     Differential Calculus with Applications in Statistics and Econometrics' by Magnus
     and Neudecker. The following result is motivated by https://tinyurl.com/y4pbfxst,
     which is shortly presented again here. For notation see the explaination at the
-    beginning of the script.
+    beginning of the module.
 
     .. math::
 
@@ -102,7 +103,7 @@ def derivative_covariance_to_internal(external):
         = (``derivative_covariance_from_internal``(\operatorname{vech}(X))) ^{-1}
 
     Args:
-        internal (np.ndarray): Cholesky factors stored in an "internal" format.
+        external (np.ndarray): Row-wise half-vectorized covariance matrix.
 
     Returns:
         deriv: The Jacobian matrix.
@@ -118,12 +119,12 @@ def derivative_covariance_to_internal(external):
     return deriv
 
 
-
 def derivative_probability_from_internal(internal):
     """Derivative of ``probability_from_internal``.
+
     The derivative can be found using matrix calculus. See for example 'Matrix
     Differential Calculus with Applications in Statistics and Econometrics' by Magnus
-    and Neudecker. For notation see the explaination at the beginning of the script.
+    and Neudecker. For notation see the explaination at the beginning of the module.
 
     .. math::
 
@@ -157,7 +158,7 @@ def derivative_probability_to_internal(external):
 
     The derivative can be found using matrix calculus. See for example 'Matrix
     Differential Calculus with Applications in Statistics and Econometrics' by Magnus
-    and Neudecker. For notation see the explaination at the beginning of the script.
+    and Neudecker. For notation see the explaination at the beginning of the module.
 
     .. math::
 
@@ -184,4 +185,102 @@ def derivative_probability_to_internal(external):
     deriv[:, -1] -= external / (external[-1] ** 2)
     deriv[-1, -1] = 0
     
+    return deriv
+
+
+def derivative_sdcorr_from_internal(internal):
+    """Derivative of ``sdcorr_from_internal``.
+
+    The derivative can be found using matrix calculus. See for example 'Matrix
+    Differential Calculus with Applications in Statistics and Econometrics' by Magnus
+    and Neudecker. The following result is motivated by https://tinyurl.com/y6ytlyd9;
+    however since the question was formulated with an error the result here is adjusted
+    slightly. In particular, in the answer by user 'greg', the matrix A should have
+    been defined as A = diag(norm(x_1), ..., norm(x_n)), where x_i denotes the i-th
+    row of X (the Cholesky factor). For notation see the explaination at the beginning
+    of the module.
+
+    ====================================================================================
+
+    Explaination on the result.
+    ---------------------------
+
+    We want to differentiate the graph
+
+        internal --> cholesky --> cov --> corr-mat --> mod. corr-mat --> external ,
+    
+    where mod. corr-mat denotes the modified correlation matrix which has the standard
+    deviations stored on its diagonal. Let x := internal and p := external. Then we want
+    to compute the quantity (d p / d x). As before we consider an intermediate result
+    first. Namely we define A as above, V := inverse(A) and P := V S V + A - I. The
+    attentive reader might now notice that P is the modified correlation matrix. At last
+    we write x' := vec(X) and p' := vec(P). Using the result stated in the tinyurl above
+    (adjusted for the different matrix A) we can compute the quantity (d p')/(d x').
+    
+    Finally, since we can define transformation matrices T and L to get p = T p' and
+    x = L x' (where L denotes the elimination matrix with corresponding duplication
+    matrix D), we can get our final result as
+
+                        d p / d x = T (d p' / d x ) D .
+
+    Args:
+        internal (np.ndarray): Cholesky factors stored in an "internal" format.
+
+    Returns:
+        deriv: The Jacobian matrix.
+
+    """
+    X = chol_params_to_lower_triangular_matrix(internal)
+    dim = len(X)
+    
+    I = np.eye(dim)
+    S = X @ X.T
+
+    #  the wrong formulation in the tinyurl stated: A = np.multiply(I, X)
+    A = np.sqrt(np.multiply(I, S))
+
+    V = np.linalg.inv(A)
+    
+    K = commutation_matrix(dim)
+    Y = np.diag(I.ravel('F'))
+    
+    #  with the wrong formulation in the tinyurl we would have had U = Y
+    norms = np.sqrt((X ** 2).sum(axis=1).reshape(-1, 1))
+    XX = X / norms
+    U = Y @ np.kron(I, XX) @ K
+    
+    N = np.kron(I, X) @ K + np.kron(X, I)
+    
+    VS = V @ S
+    B = np.kron(V, V)
+    H = np.kron(VS, I)
+    J = np.kron(I, VS)
+    
+    intermediate = U + B @ N - (H + J) @ B @ U
+    
+    T = transformation_matrix(dim)
+    D = duplication_matrix(dim)
+
+    deriv = T @ intermediate @ D
+    return deriv
+
+
+
+def derivative_sdcorr_to_internal(external):
+    """Derivative of ``sdcorr_to_internal``.
+
+    Args:
+        external (np.ndarray): Row-wise half-vectorized modified correlation matrix.
+
+    Returns:
+        deriv: The Jacobian matrix.
+
+    """
+    cov = sdcorr_params_to_matrix(external)
+    chol = robust_cholesky(cov)
+
+    internal = chol[np.tril_indices(len(chol))]
+
+    deriv = derivative_sdcorr_from_internal(internal)
+    deriv = np.linalg.inv(deriv)
     return deriv
