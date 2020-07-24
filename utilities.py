@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.sparse import csr_matrix
 
 
 
@@ -104,8 +105,7 @@ def commutation_matrix(dim):
 
 
 def _unit_vector_or_zeros(index, size):
-    """Return unit vector or vector of all zeroes.
-    """
+    """Return unit vector or vector of all zeroes."""
     u = np.zeros(size, int)
     if index != -1:
         u[index] = 1
@@ -113,6 +113,22 @@ def _unit_vector_or_zeros(index, size):
 
 
 def elimination_matrix(dim):
+    """Construct (row-wise) elimination matrix.
+
+    Let A be a quadratic matrix. Let vec(A) be the column-wise vectorization of A. Let
+    vech(A) be the row-wise half-vectorization of A. Then the corresponding elimination
+    matrix L is such that: L vec(A) = vech(A)
+
+    Example:
+    >>> import numpy as np
+    >>> dim = 25
+    >>> M = np.random.randn(dim, dim)
+    >>> vecM = M.ravel('F')
+    >>> vechM = M[np.tril_indices(dim)]
+    >>> L = elimination_matrix(dim)
+    >>> (L @ vecM == vechM).all()
+
+    """
     n = dimension_to_number_of_triangular_elements(dim)
     
     M = np.zeros((dim, dim), int) - 1
@@ -124,8 +140,26 @@ def elimination_matrix(dim):
     return elim
 
 
-def duplication_matrix(dim, elim=None):
-    if elim is None:
-        elim = elimination_matrix(dim)
-    dupl = elim.T
-    return dupl
+def transformation_matrix(dim):  # not needed right now
+    n = dimension_to_number_of_triangular_elements(dim)
+    M = np.zeros((dim, dim)) + np.nan
+    M[np.diag_indices(dim)] = np.arange(dim, dtype=int)
+    M[np.tril_indices(dim, k=-1)] = np.arange(dim, n, dtype=int)
+    
+    m = M.ravel('F')
+    num_na = np.count_nonzero(np.isnan(m))
+    indices = m.argsort()[:-num_na]
+
+    rows = [_unit_vector_or_zeros(i, dim ** 2) for i in indices]
+    
+    transformer = np.row_stack(rows)
+    return transformer
+
+
+def duplication_matrix(dim):  # not needed right now
+    n = dimension_to_number_of_triangular_elements(dim)
+    M = np.zeros((dim, dim), dtype=int) - 1
+    M[np.tril_indices(dim)] = np.arange(n)
+    rows = [_unit_vector_or_zeros(i, n) for i in M.ravel('F')]
+    D = np.row_stack(rows)
+    return D
