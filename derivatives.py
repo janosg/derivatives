@@ -1,24 +1,29 @@
 """Derivatives.
 
 Remarks on the mathematical notation:
+-------------------------------------
 
-Let X denote the Cholesky factor of some covariance matrix S. I.e., X X^\top = S.
+Let X denote the Cholesky factor of some covariance matrix S. I.e. X X^\top = S.
 We write vec(A) for the (column-wise) vectorization of the matrix A and we write
-vech(A) for the (row-wise) half vectorization of A. We denote the elimination matrix by
-L, which fulfills L vec(A) = vech(A). For symmetric matrices A we define the duplication
-matrix D, which fulfills D vech(A) = vec(A) and for lower-triangular matrices we define
-the "lower-triangular" duplication matrix which again fulfills D vech(A) = vec(A), but
-is not to be confused with the standard duplication matrix. In fact, for the
-"lower-triangular" case we have D = L^\top. We denote the kronecker product by \otimes.
+vech(A) for the (row-wise) half vectorization of A. We denote the elimination
+matrix by L, which fulfills L vec(A) = vech(A). For symmetric matrices A we
+define the duplication matrix D, which fulfills D vech(A) = vec(A) and for
+lower-triangular matrices we define the "lower-triangular" duplication matrix
+which again fulfills D vech(A) = vec(A), but is not to be confused with the
+standard duplication matrix. In fact, for the "lower-triangular" case we have
+D = L^\top. We denote the kronecker product by \otimes.
+
+Remarks on reference literature:
+--------------------------------
+
+The solutions on how to compute the derivatives implemented here can be found
+using matrix calculus. See for example 'Matrix Differential Calculus with
+Applications in Statistics and Econometrics' by Magnus and Neudecker.
 
 """
-import itertools
 import numpy as np
 
 from utilities import chol_params_to_lower_triangular_matrix
-from utilities import cov_matrix_to_sdcorr_params
-from utilities import number_of_triangular_elements_to_dimension
-from utilities import dimension_to_number_of_triangular_elements
 from utilities import cov_params_to_matrix
 from utilities import sdcorr_params_to_matrix
 
@@ -33,10 +38,8 @@ from estimagic.optimization.utilities import robust_cholesky
 def derivative_covariance_from_internal(internal):
     """Derivative of ``covariance_from_internal``.
 
-    The derivative can be found using matrix calculus. See for example 'Matrix
-    Differential Calculus with Applications in Statistics and Econometrics' by Magnus
-    and Neudecker. The following result is motivated by https://tinyurl.com/y4pbfxst,
-    which is shortly presented again here. For notation see the explaination at the
+    The following result is motivated by https://tinyurl.com/y4pbfxst, which is
+    shortly presented again here. For notation see the explaination at the
     beginning of the module.
 
     .. math::
@@ -65,26 +68,24 @@ def derivative_covariance_from_internal(internal):
     """
     chol = chol_params_to_lower_triangular_matrix(internal)
     dim = len(chol)
-    
+
     K = commutation_matrix(dim)
     L = elimination_matrix(dim)
-    
+
     left = np.eye(dim ** 2) + K
     right = np.kron(chol, np.eye(dim))
 
-    intermediate = left @ right  # J'
-    
-    deriv = L @ intermediate @ L.T  # J
+    intermediate = left @ right
+
+    deriv = L @ intermediate @ L.T
     return deriv
 
 
 def derivative_covariance_to_internal(external):
     """Derivative of ``covariance_to_internal``.
 
-    The derivative can be found using matrix calculus. See for example 'Matrix
-    Differential Calculus with Applications in Statistics and Econometrics' by Magnus
-    and Neudecker. The following result is motivated by https://tinyurl.com/y4pbfxst,
-    which is shortly presented again here. For notation see the explaination at the
+    The following result is motivated by https://tinyurl.com/y4pbfxst, which is
+    shortly presented again here. For notation see the explaination at the
     beginning of the module.
 
     .. math::
@@ -122,10 +123,6 @@ def derivative_covariance_to_internal(external):
 def derivative_probability_from_internal(internal):
     """Derivative of ``probability_from_internal``.
 
-    The derivative can be found using matrix calculus. See for example 'Matrix
-    Differential Calculus with Applications in Statistics and Econometrics' by Magnus
-    and Neudecker. For notation see the explaination at the beginning of the module.
-
     .. math::
 
         1 := (1, \dots, 1)^\top \\
@@ -144,21 +141,17 @@ def derivative_probability_from_internal(internal):
 
     """
     dim = len(internal)
-    
+
     sigma = np.sum(internal)
     left = np.eye(dim)
     right = np.ones((dim, dim)) * (internal / sigma)
-    
+
     deriv = (left - right.T) / sigma
     return deriv
 
 
 def derivative_probability_to_internal(external):
     """Derivative of ``probability_to_internal``.
-
-    The derivative can be found using matrix calculus. See for example 'Matrix
-    Differential Calculus with Applications in Statistics and Econometrics' by Magnus
-    and Neudecker. For notation see the explaination at the beginning of the module.
 
     .. math::
 
@@ -169,8 +162,11 @@ def derivative_probability_to_internal(external):
         J(f)(x) = 
         \frac{1}{x_m} \sum_{k=1}^{m-1} e_k e_k^\top - 
         \frac{1}{x_m^2}  [
-            0, \dots, 0, \left ( \begin{matrix} x_{1:m-1} \\ 0 \end{matrix} \right ) 
-            ]
+            0, 
+            \dots,
+            0,
+            \left ( \begin{matrix} x_{1:m-1} \\ 0 \end{matrix} \right ) 
+        ]
 
     Args:
         external (np.ndarray): Array of probabilities; sums to one.
@@ -180,48 +176,47 @@ def derivative_probability_to_internal(external):
 
     """
     dim = len(external)
-    
+
     deriv = np.eye(dim) / external[-1]
     deriv[:, -1] -= external / (external[-1] ** 2)
     deriv[-1, -1] = 0
-    
+
     return deriv
 
 
 def derivative_sdcorr_from_internal(internal):
     """Derivative of ``sdcorr_from_internal``.
 
-    The derivative can be found using matrix calculus. See for example 'Matrix
-    Differential Calculus with Applications in Statistics and Econometrics' by Magnus
-    and Neudecker. The following result is motivated by https://tinyurl.com/y6ytlyd9;
-    however since the question was formulated with an error the result here is adjusted
-    slightly. In particular, in the answer by user 'greg', the matrix A should have
-    been defined as A = diag(norm(x_1), ..., norm(x_n)), where x_i denotes the i-th
-    row of X (the Cholesky factor). For notation see the explaination at the beginning
-    of the module.
+    The following result is motivated by https://tinyurl.com/y6ytlyd9; however
+    since the question was formulated with an error the result here is adjusted
+    slightly. In particular, in the answer by user 'greg', the matrix A should
+    have been defined as A = diag(norm(x_1), ..., norm(x_n)), where x_i denotes
+    the i-th row of X (the Cholesky factor). For notation see the explaination
+    at the beginning of the module.
 
-    ====================================================================================
+    ============================================================================
 
     Explaination on the result.
     ---------------------------
 
     We want to differentiate the graph
 
-        internal --> cholesky --> cov --> corr-mat --> mod. corr-mat --> external ,
+      internal --> cholesky --> cov --> corr-mat --> mod. corr-mat --> external
     
-    where mod. corr-mat denotes the modified correlation matrix which has the standard
-    deviations stored on its diagonal. Let x := internal and p := external. Then we want
-    to compute the quantity (d p / d x). As before we consider an intermediate result
-    first. Namely we define A as above, V := inverse(A) and P := V S V + A - I. The
-    attentive reader might now notice that P is the modified correlation matrix. At last
-    we write x' := vec(X) and p' := vec(P). Using the result stated in the tinyurl above
-    (adjusted for the different matrix A) we can compute the quantity (d p')/(d x').
+    where mod. corr-mat denotes the modified correlation matrix which has the
+    standard deviations stored on its diagonal. Let x := internal and
+    p := external. Then we want to compute the quantity (d p / d x). As before
+    we consider an intermediate result first. Namely we define A as above,
+    V := inverse(A) and P := V S V + A - I. The attentive reader might now
+    notice that P is the modified correlation matrix. At last we write
+    x' := vec(X) and p' := vec(P). Using the result stated in the tinyurl above,
+    adjusted for the different matrix A, we can compute the quantity (d p'/d x')
     
-    Finally, since we can define transformation matrices T and L to get p = T p' and
-    x = L x' (where L denotes the elimination matrix with corresponding duplication
-    matrix D), we can get our final result as
+    Finally, since we can define transformation matrices T and L to get p = T p'
+    and x = L x' (where L denotes the elimination matrix with corresponding
+    duplication matrix D), we can get our final result as
 
-                        d p / d x = T (d p' / d x ) D .
+                        d p / d x = T (d p' / d x' ) D .
 
     Args:
         internal (np.ndarray): Cholesky factors stored in an "internal" format.
@@ -232,7 +227,7 @@ def derivative_sdcorr_from_internal(internal):
     """
     X = chol_params_to_lower_triangular_matrix(internal)
     dim = len(X)
-    
+
     I = np.eye(dim)
     S = X @ X.T
 
@@ -240,24 +235,24 @@ def derivative_sdcorr_from_internal(internal):
     A = np.sqrt(np.multiply(I, S))
 
     V = np.linalg.inv(A)
-    
+
     K = commutation_matrix(dim)
-    Y = np.diag(I.ravel('F'))
-    
+    Y = np.diag(I.ravel("F"))
+
     #  with the wrong formulation in the tinyurl we would have had U = Y
     norms = np.sqrt((X ** 2).sum(axis=1).reshape(-1, 1))
     XX = X / norms
     U = Y @ np.kron(I, XX) @ K
-    
+
     N = np.kron(I, X) @ K + np.kron(X, I)
-    
+
     VS = V @ S
     B = np.kron(V, V)
     H = np.kron(VS, I)
     J = np.kron(I, VS)
-    
+
     intermediate = U + B @ N - (H + J) @ B @ U
-    
+
     T = transformation_matrix(dim)
     D = duplication_matrix(dim)
 
@@ -265,12 +260,12 @@ def derivative_sdcorr_from_internal(internal):
     return deriv
 
 
-
 def derivative_sdcorr_to_internal(external):
     """Derivative of ``sdcorr_to_internal``.
 
     Args:
-        external (np.ndarray): Row-wise half-vectorized modified correlation matrix.
+        external (np.ndarray): Row-wise half-vectorized modified correlation
+            matrix.
 
     Returns:
         deriv: The Jacobian matrix.

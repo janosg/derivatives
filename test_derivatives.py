@@ -4,11 +4,14 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 from jax import jacfwd
 
+from utilities import cov_matrix_to_sdcorr_params
+
 from derivatives import derivative_covariance_from_internal
 from derivatives import derivative_covariance_to_internal
 from derivatives import derivative_probability_from_internal
 from derivatives import derivative_probability_to_internal
 from derivatives import derivative_sdcorr_from_internal
+from derivatives import derivative_sdcorr_to_internal
 
 from kernel_transformations_jax import covariance_from_internal
 from kernel_transformations_jax import covariance_to_internal
@@ -18,20 +21,47 @@ from kernel_transformations_jax import sdcorr_from_internal
 from kernel_transformations_jax import sdcorr_to_internal
 
 
-def get_random_internal(dim, seed=0):
-    """Return random internal values given dimension."""
+DIMENSIONS = list(range(10, 30))
+SEEDS = list(range(5))
+
+
+def get_internal_cholesky(dim, seed=0):
+    """Return random internal cholesky values given dimension."""
     np.random.seed(seed)
     chol = np.tril(np.random.randn(dim, dim))
     internal = chol[np.tril_indices(len(chol))]
     return internal
 
 
-def get_random_external(dim, seed=0):
-    """Return random external values given dimension."""
+def get_external_covariance(dim, seed=0):
+    """Return random external covariance values given dimension."""
     np.random.seed(seed)
     data = np.random.randn(dim, 1000)
     cov = np.cov(data)
     external = cov[np.tril_indices(dim)]
+    return external
+
+
+def get_internal_probability(dim, seed=0):
+    """Return random internal positive values given dimension."""
+    np.random.seed(seed)
+    internal = np.random.uniform(size=dim)
+    return internal
+
+
+def get_external_probability(dim, seed=0):
+    """Return random internal positive values that sum to one."""
+    internal = get_internal_probability(dim, seed)
+    external = internal / internal.sum()
+    return external
+
+
+def get_external_sdcorr(dim, seed=0):
+    """Return random external sdcorr values given dimension."""
+    np.random.seed(seed)
+    X = np.random.randn(dim, 1000)
+    cov = np.cov(X)
+    external = cov_matrix_to_sdcorr_params(cov)
     return external
 
 
@@ -48,62 +78,55 @@ def jax_derivatives():
     return out
 
 
-@pytest.mark.parametrize("dim", list(range(10, 50)))
-def test_derivative_covariance_from_internal(dim, jax_derivatives):
-    internal = get_random_internal(dim)
+@pytest.mark.parametrize("dim", DIMENSIONS)
+@pytest.mark.parametrize("seed", SEEDS)
+def test_derivative_covariance_from_internal(dim, seed, jax_derivatives):
+    internal = get_internal_cholesky(dim)
     jax_deriv = jax_derivatives["covariance_from"](internal)
     deriv = derivative_covariance_from_internal(internal)
     assert_array_almost_equal(deriv, jax_deriv, decimal=5)
 
 
-@pytest.mark.parametrize("dim", list(range(10, 50)))
-def test_derivative_covariance_to_internal(dim, jax_derivatives):
-    external = get_random_external(dim)
+@pytest.mark.parametrize("dim", DIMENSIONS)
+@pytest.mark.parametrize("seed", SEEDS)
+def test_derivative_covariance_to_internal(dim, seed, jax_derivatives):
+    external = get_external_covariance(dim)
     jax_deriv = jax_derivatives["covariance_to"](external)
     deriv = derivative_covariance_to_internal(external)
     assert_array_almost_equal(deriv, jax_deriv, decimal=5)
 
 
-def test_derivative_probability_from_internal(jax_derivatives):
-    bad = []
-    for dim in range(10, 50):
-        internal = get_random_internal(dim)
-        jax_deriv = jax_derivatives["probability_from"](internal)
-        deriv = derivative_probability_from_internal(internal)
-        try:
-            assert_array_almost_equal(deriv, jax_deriv, decimal=5)
-        except AssertionError:
-            bad.append(dim)
-
-    assert len(bad) < 5
-
-
-@pytest.mark.parametrize("dim", list(range(10, 50)))
-def test_derivative_probability_to_internal(dim, jax_derivatives):
-    external = get_random_external(dim)
-    jax_deriv = jax_derivatives["probability_to"](external)
-    deriv = derivative_probability_to_internal(external)
+@pytest.mark.parametrize("dim", DIMENSIONS)
+@pytest.mark.parametrize("seed", SEEDS)
+def test_derivative_probability_from_internal(dim, seed, jax_derivatives):
+    internal = get_internal_probability(dim)
+    jax_deriv = jax_derivatives["probability_from"](internal)
+    deriv = derivative_probability_from_internal(internal)
     assert_array_almost_equal(deriv, jax_deriv, decimal=5)
 
 
-@pytest.mark.parametrize("dim", list(range(10, 50)))
-def test_derivative_sdcorr_from_internal(dim, jax_derivatives):
-    internal = get_random_internal(dim)
+@pytest.mark.parametrize("dim", DIMENSIONS)
+@pytest.mark.parametrize("seed", SEEDS)
+def test_derivative_probability_to_internal(dim, seed, jax_derivatives):
+    external = get_external_probability(dim)
+    jax_deriv = jax_derivatives["probability_to"](external)
+    deriv = derivative_probability_to_internal(external)
+    assert_array_almost_equal(deriv, jax_deriv, decimal=3)
+
+
+@pytest.mark.parametrize("dim", DIMENSIONS)
+@pytest.mark.parametrize("seed", SEEDS)
+def test_derivative_sdcorr_from_internal(dim, seed, jax_derivatives):
+    internal = get_internal_cholesky(dim)
     jax_deriv = jax_derivatives["sdcorr_from"](internal)
     deriv = derivative_sdcorr_from_internal(internal)
     assert_array_almost_equal(deriv, jax_deriv, decimal=5)
 
 
-def test_derivative_sdcorr_to_internal(jax_derivatives):
-    bad = []
-
-    for dim in range(10, 50):
-        external = get_random_external(dim)
-        jax_deriv = jax_derivatives["sdcorr_to"](external)
-        try:
-            deriv = derivative_sdcorr_to_internal(external)
-            assert_array_almost_equal(deriv, jax_deriv, decimal=5)
-        except Exception:
-            bad.append(dim)
-
-    assert len(bad) < 5
+@pytest.mark.parametrize("dim", DIMENSIONS)
+@pytest.mark.parametrize("seed", SEEDS)
+def test_derivative_sdcorr_to_internal(dim, seed, jax_derivatives):
+    external = get_external_sdcorr(dim)
+    jax_deriv = jax_derivatives["sdcorr_to"](external)
+    deriv = derivative_sdcorr_to_internal(external)
+    assert_array_almost_equal(deriv, jax_deriv, decimal=5)
