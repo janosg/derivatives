@@ -10,7 +10,9 @@ the row-wise half vectorization of :math:`A`. We denote the elimination
 matrix by :math:`L`, which fulfills :math:`L \text{vec}(A) = \text{vech}(A)`.
 For lower-triangular matrices :math:`A` we define the "lower-triangular"
 duplication matrix :math:`D`, which is not to be confused with the standard
-duplication matrix, and fulfills :math:`D \text{vech}(A) = \text{vec}(A)`.
+duplication matrix, and fulfills :math:`D \text{vech}(A) = \text{vec}(A)`. At
+last we define the so called commutation matrix :math:`K` which is given by the
+property that :math:`K \text{vec}(A) = \text{vec}(A^\top)`.
 
 Remarks on reference literature:
 --------------------------------
@@ -18,7 +20,7 @@ Remarks on reference literature:
 The solutions on how to compute the jacobians implemented here can be found
 using matrix calculus. See for example 'Matrix Differential Calculus with
 Applications in Statistics and Econometrics' by Magnus and Neudecker. In
-specific cases we refere to posts on math.stackexchange.com.
+specific cases we refer to posts on math.stackexchange.com.
 
 """
 import numpy as np
