@@ -1,6 +1,4 @@
 import numpy as np
-from scipy.sparse import csr_matrix
-
 
 
 def chol_params_to_lower_triangular_matrix(params):
@@ -87,79 +85,3 @@ def dimension_to_number_of_triangular_elements(dim):
         dim (int): Dimension of a square matrix.
     """
     return int(dim * (dim + 1) / 2)
-
-
-def commutation_matrix(dim):
-    row  = np.arange(dim ** 2)
-    col  = row.reshape((dim, dim), order='F').ravel()
-    
-    data = np.ones(dim ** 2, dtype=np.int8)
-    
-    sparse_matrix = csr_matrix(
-        (data, (row, col)), 
-        shape=(dim ** 2, dim ** 2)
-    )
-    
-    arr = sparse_matrix.toarray()
-    return arr
-
-
-def _unit_vector_or_zeros(index, size):
-    """Return unit vector or vector of all zeroes."""
-    u = np.zeros(size, int)
-    if index != -1:
-        u[index] = 1
-    return u
-
-
-def elimination_matrix(dim):
-    """Construct (row-wise) elimination matrix.
-
-    Let A be a quadratic matrix. Let vec(A) be the column-wise vectorization of A. Let
-    vech(A) be the row-wise half-vectorization of A. Then the corresponding elimination
-    matrix L is such that: L vec(A) = vech(A)
-
-    Example:
-    >>> import numpy as np
-    >>> dim = 25
-    >>> M = np.random.randn(dim, dim)
-    >>> vecM = M.ravel('F')
-    >>> vechM = M[np.tril_indices(dim)]
-    >>> L = elimination_matrix(dim)
-    >>> (L @ vecM == vechM).all()
-
-    """
-    n = dimension_to_number_of_triangular_elements(dim)
-    
-    M = np.zeros((dim, dim), int) - 1
-    M[np.tril_indices(dim)] = np.arange(n, dtype=int)
-    
-    columns = [_unit_vector_or_zeros(i, n) for i in M.ravel('F')]
-    
-    elim = np.column_stack(columns)
-    return elim
-
-
-def transformation_matrix(dim):  # not needed right now
-    n = dimension_to_number_of_triangular_elements(dim)
-    M = np.zeros((dim, dim)) + np.nan
-    M[np.diag_indices(dim)] = np.arange(dim, dtype=int)
-    M[np.tril_indices(dim, k=-1)] = np.arange(dim, n, dtype=int)
-    
-    m = M.ravel('F')
-    num_na = np.count_nonzero(np.isnan(m))
-    indices = m.argsort()[:-num_na]
-
-    rows = [_unit_vector_or_zeros(i, dim ** 2) for i in indices]
-    
-    transformer = np.row_stack(rows)
-    return transformer
-
-
-def duplication_matrix(dim):  # not needed right now
-    n = dimension_to_number_of_triangular_elements(dim)
-    M = np.zeros((dim, dim), dtype=int) - 1
-    M[np.tril_indices(dim)] = np.arange(n)
-    rows = [_unit_vector_or_zeros(i, n) for i in M.ravel('F')]
-    D = np.row_stack(rows)
-    return D

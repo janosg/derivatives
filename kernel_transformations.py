@@ -1,9 +1,11 @@
+import numpy as np
+
 from utilities import chol_params_to_lower_triangular_matrix
 from utilities import cov_matrix_to_sdcorr_params
 from utilities import cov_params_to_matrix
-from utilities import robust_cholesky
 from utilities import sdcorr_params_to_matrix
-import numpy as np
+
+from estimagic.optimization.utilities import robust_cholesky
 
 
 def covariance_to_internal(external_values):

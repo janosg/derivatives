@@ -6,12 +6,12 @@ from jax import jacfwd
 
 from utilities import cov_matrix_to_sdcorr_params
 
-from derivatives import derivative_covariance_from_internal
-from derivatives import derivative_covariance_to_internal
-from derivatives import derivative_probability_from_internal
-from derivatives import derivative_probability_to_internal
-from derivatives import derivative_sdcorr_from_internal
-from derivatives import derivative_sdcorr_to_internal
+from derivatives import jacobian_covariance_from_internal
+from derivatives import jacobian_covariance_to_internal
+from derivatives import jacobian_probability_from_internal
+from derivatives import jacobian_probability_to_internal
+from derivatives import jacobian_sdcorr_from_internal
+from derivatives import jacobian_sdcorr_to_internal
 
 from kernel_transformations_jax import covariance_from_internal
 from kernel_transformations_jax import covariance_to_internal
@@ -83,7 +83,7 @@ def jax_derivatives():
 def test_derivative_covariance_from_internal(dim, seed, jax_derivatives):
     internal = get_internal_cholesky(dim)
     jax_deriv = jax_derivatives["covariance_from"](internal)
-    deriv = derivative_covariance_from_internal(internal)
+    deriv = jacobian_covariance_from_internal(internal)
     assert_array_almost_equal(deriv, jax_deriv, decimal=5)
 
 
@@ -92,7 +92,7 @@ def test_derivative_covariance_from_internal(dim, seed, jax_derivatives):
 def test_derivative_covariance_to_internal(dim, seed, jax_derivatives):
     external = get_external_covariance(dim)
     jax_deriv = jax_derivatives["covariance_to"](external)
-    deriv = derivative_covariance_to_internal(external)
+    deriv = jacobian_covariance_to_internal(external)
     assert_array_almost_equal(deriv, jax_deriv, decimal=5)
 
 
@@ -101,7 +101,7 @@ def test_derivative_covariance_to_internal(dim, seed, jax_derivatives):
 def test_derivative_probability_from_internal(dim, seed, jax_derivatives):
     internal = get_internal_probability(dim)
     jax_deriv = jax_derivatives["probability_from"](internal)
-    deriv = derivative_probability_from_internal(internal)
+    deriv = jacobian_probability_from_internal(internal)
     assert_array_almost_equal(deriv, jax_deriv, decimal=5)
 
 
@@ -110,7 +110,7 @@ def test_derivative_probability_from_internal(dim, seed, jax_derivatives):
 def test_derivative_probability_to_internal(dim, seed, jax_derivatives):
     external = get_external_probability(dim)
     jax_deriv = jax_derivatives["probability_to"](external)
-    deriv = derivative_probability_to_internal(external)
+    deriv = jacobian_probability_to_internal(external)
     assert_array_almost_equal(deriv, jax_deriv, decimal=3)
 
 
@@ -119,7 +119,7 @@ def test_derivative_probability_to_internal(dim, seed, jax_derivatives):
 def test_derivative_sdcorr_from_internal(dim, seed, jax_derivatives):
     internal = get_internal_cholesky(dim)
     jax_deriv = jax_derivatives["sdcorr_from"](internal)
-    deriv = derivative_sdcorr_from_internal(internal)
+    deriv = jacobian_sdcorr_from_internal(internal)
     assert_array_almost_equal(deriv, jax_deriv, decimal=5)
 
 
@@ -128,5 +128,5 @@ def test_derivative_sdcorr_from_internal(dim, seed, jax_derivatives):
 def test_derivative_sdcorr_to_internal(dim, seed, jax_derivatives):
     external = get_external_sdcorr(dim)
     jax_deriv = jax_derivatives["sdcorr_to"](external)
-    deriv = derivative_sdcorr_to_internal(external)
+    deriv = jacobian_sdcorr_to_internal(external)
     assert_array_almost_equal(deriv, jax_deriv, decimal=5)
