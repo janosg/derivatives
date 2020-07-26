@@ -41,7 +41,6 @@ def probability_from_internal(internal_values):
     return internal_values / internal_values.sum()
 
 
-
 def chol_params_to_lower_triangular_matrix_jax(params):
     dim = number_of_triangular_elements_to_dimension_jax(len(params))
     mat = index_update(jnp.zeros((dim, dim)), index[jnp.tril_indices(dim)], params)

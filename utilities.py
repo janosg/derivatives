@@ -1,7 +1,6 @@
 import numpy as np
 
 
-
 def chol_params_to_lower_triangular_matrix(params):
     dim = number_of_triangular_elements_to_dimension(len(params))
     mat = np.zeros((dim, dim))
